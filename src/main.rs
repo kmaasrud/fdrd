@@ -87,7 +87,7 @@ fn write_main_page<W: Write>(mut w: W, feeds: Feeds) -> Result<(), Box<dyn Error
         r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💭</text></svg>">"#
     )?;
     write!(w, "<style>{}</style>", include_str!("./main.css"))?;
-    write!(w, "<h1><code>fdrd</code></h1>")?;
+    write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
     feeds.write_html(&mut w)?;
     Ok(())
 }
