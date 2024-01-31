@@ -1,0 +1,30 @@
+html {
+    max-width: 80ch;
+    margin-inline: auto;
+    margin-block: 20px 100px;
+    padding-inline: 20px;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 10px;
+}
+
+a {
+    color: blue;
+}
+
+@media (prefers-color-scheme: dark) {
+    a {
+        color: cornflowerblue
+    }
+}

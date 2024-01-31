@@ -1,9 +1,14 @@
-use std::error::Error;
-use std::io::{self, Read, Write};
-use std::net::{TcpListener, TcpStream};
-use std::thread;
+mod feed;
 
-const ADDR: &str = "192.168.0.60:8080";
+use std::error::Error;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
+
+use feed::Feeds;
+
+use crate::feed::mock_feeds;
+
+const ADDR: &str = "127.0.0.1:8080";
 
 fn main() {
     match run() {
@@ -22,15 +27,13 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     for stream in listener.incoming() {
         let stream = stream?;
-        thread::spawn(|| {
-            handle_client(stream);
-        });
+        handle_client(stream)?;
     }
 
     Ok(())
 }
 
-fn handle_client(mut stream: TcpStream) {
+fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
     eprintln!(
         "connected to: {}",
         stream
@@ -49,7 +52,7 @@ fn handle_client(mut stream: TcpStream) {
             if is_get_root(request) {
                 writeln!(stream, "HTTP/1.1 200 OK\r").unwrap();
                 writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r").unwrap();
-                write_main_page(&mut stream).unwrap();
+                write_main_page(&mut stream, mock_feeds()?).unwrap();
             } else {
                 write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found").unwrap();
             }
@@ -58,6 +61,7 @@ fn handle_client(mut stream: TcpStream) {
         }
         Err(e) => eprintln!("error: failed to read from socket: {}", e),
     }
+    Ok(())
 }
 
 fn is_get_root(request: &str) -> bool {
@@ -70,7 +74,7 @@ fn is_get_root(request: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn write_main_page<W: Write>(mut w: W) -> io::Result<()> {
+fn write_main_page<W: Write>(mut w: W, feeds: Feeds) -> Result<(), Box<dyn Error>> {
     write!(w, "<!DOCTYPE html>")?;
     write!(w, r#"<meta charset="utf-8">"#)?;
     write!(
@@ -82,7 +86,8 @@ fn write_main_page<W: Write>(mut w: W) -> io::Result<()> {
         w,
         r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💭</text></svg>">"#
     )?;
-    write!(w, "<h1>Welcome to this RSS reader!</h1>")?;
-    write!(w, "<p>Isn't this fun?</p>")?;
+    write!(w, "<style>{}</style>", include_str!("./main.css"))?;
+    write!(w, "<h1><code>fdrd</code></h1>")?;
+    feeds.write_html(&mut w)?;
     Ok(())
 }
