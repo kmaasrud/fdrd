@@ -3,12 +3,33 @@ mod feed;
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 use feed::Feeds;
 
 use crate::feed::mock_feeds;
 
-const ADDR: &str = "127.0.0.1:8080";
+const ADDR: &str = "192.168.0.60:8080";
+const UPDATE_MINUTES: u64 = 15;
+
+struct Model {
+    feeds: Feeds,
+}
+
+impl Model {
+    fn new() -> Self {
+        Self {
+            feeds: mock_feeds().unwrap(),
+        }
+    }
+
+    fn update(&mut self) -> Result<(), Box<dyn Error>> {
+        self.feeds = mock_feeds()?;
+        Ok(())
+    }
+}
 
 fn main() {
     match run() {
@@ -21,19 +42,37 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
+    let model = Arc::new(Mutex::new(Model::new()));
+
+    let model_clone = Arc::clone(&model);
+    thread::spawn(move || loop {
+        thread::sleep(Duration::from_secs(UPDATE_MINUTES * 60));
+        let mut feeds = model_clone.lock().unwrap();
+        if let Err(e) = feeds.update() {
+            eprintln!("error: failed to update model: {e}");
+        }
+        feeds.update().unwrap();
+        println!("model updated!");
+    });
+
     let listener = TcpListener::bind(ADDR)?;
 
     eprintln!("server listening on {ADDR}...");
 
     for stream in listener.incoming() {
         let stream = stream?;
-        handle_client(stream)?;
+        let model = Arc::clone(&model);
+        thread::spawn(move || {
+            if let Err(e) = handle_client(stream, model) {
+                eprintln!("error: failed to handle client: {e}");
+            }
+        });
     }
 
     Ok(())
 }
 
-fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), Box<dyn Error>> {
     eprintln!(
         "connected to: {}",
         stream
@@ -49,12 +88,22 @@ fn handle_client(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
         Ok(_) => {
             let request = std::str::from_utf8(&buffer).unwrap();
 
+            let model = match model.try_lock() {
+                Ok(model) => model,
+                Err(e) => {
+                    writeln!(stream, "HTTP/1.1 500 Internal Server Error\r")?;
+                    writeln!(stream, "Content-Type: text/plain\r\n\r")?;
+                    writeln!(stream, "500 Internal Server Error: {e}")?;
+                    return Err(e.to_string().into());
+                }
+            };
+
             if is_get_root(request) {
                 writeln!(stream, "HTTP/1.1 200 OK\r").unwrap();
-                writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r").unwrap();
-                write_main_page(&mut stream, mock_feeds()?).unwrap();
+                writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r")?;
+                write_main_page(&mut stream, &model.feeds).unwrap();
             } else {
-                write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found").unwrap();
+                write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found")?;
             }
 
             stream.flush().unwrap();
@@ -74,7 +123,7 @@ fn is_get_root(request: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn write_main_page<W: Write>(mut w: W, feeds: Feeds) -> Result<(), Box<dyn Error>> {
+fn write_main_page<W: Write>(mut w: W, feeds: &Feeds) -> Result<(), Box<dyn Error>> {
     write!(w, "<!DOCTYPE html>")?;
     write!(w, r#"<meta charset="utf-8">"#)?;
     write!(

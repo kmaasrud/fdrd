@@ -4,9 +4,14 @@ use std::error::Error;
 use std::io::{self, Write};
 use ureq::get;
 
-const FEEDS: &str = r#"https://signal.org/blog/rss.xml
+const FEEDS: &str = r#"https://asahilinux.org/blog/index.xml
+https://blog.rust-lang.org/feed.xml
 https://drewdevault.com/blog/index.xml
-https://sourcehut.org/blog/index.xml"#;
+https://endtimes.dev/feed.xml
+https://github.com/hellux/jotdown/tags.atom
+https://hllmn.net/blog/index.xml
+https://kmaasrud.com/atom.xml
+https://nutcroft.com/rss/"#;
 
 pub fn mock_feeds() -> Result<Feeds, Box<dyn Error>> {
     let mut feeds = Feeds::new();
