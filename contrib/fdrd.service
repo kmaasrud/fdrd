@@ -1,0 +1,10 @@
+[Unit]
+Description=fdrd
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/fdrd
+
+[Install]
+WantedBy=multi-user.target
