@@ -11,8 +11,9 @@ use feed::Feeds;
 
 use crate::feed::mock_feeds;
 
-const ADDR: &str = "192.168.0.60:8080";
+const ADDR: &str = "0.0.0.0:8080";
 const UPDATE_MINUTES: u64 = 15;
+const BUF_SIZE: usize = 1024;
 
 struct Model {
     feeds: Feeds,
@@ -47,12 +48,15 @@ fn run() -> Result<(), Box<dyn Error>> {
     let model_clone = Arc::clone(&model);
     thread::spawn(move || loop {
         thread::sleep(Duration::from_secs(UPDATE_MINUTES * 60));
-        let mut feeds = model_clone.lock().unwrap();
-        if let Err(e) = feeds.update() {
-            eprintln!("error: failed to update model: {e}");
+        match model_clone.try_lock() {
+            Ok(mut feeds) => {
+                if let Err(e) = feeds.update() {
+                    eprintln!("error: failed to update model: {e}");
+                }
+                eprintln!("model updated!");
+            }
+            Err(e) => eprintln!("error: failed to acquire lock when updating model: {e}"),
         }
-        feeds.update().unwrap();
-        println!("model updated!");
     });
 
     let listener = TcpListener::bind(ADDR)?;
@@ -83,11 +87,9 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
     );
 
     // NOTE: We only need to check the request line, so this should be enough of a buffer
-    let mut buffer = [0; 1024];
+    let mut buffer = [0; BUF_SIZE];
     match stream.read(&mut buffer) {
         Ok(_) => {
-            let request = std::str::from_utf8(&buffer).unwrap();
-
             let model = match model.try_lock() {
                 Ok(model) => model,
                 Err(e) => {
@@ -98,7 +100,7 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
                 }
             };
 
-            if is_get_root(request) {
+            if is_get_root(buffer) {
                 writeln!(stream, "HTTP/1.1 200 OK\r").unwrap();
                 writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r")?;
                 write_main_page(&mut stream, &model.feeds).unwrap();
@@ -106,15 +108,17 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
                 write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found")?;
             }
 
-            stream.flush().unwrap();
+            // stream.flush().unwrap();
         }
         Err(e) => eprintln!("error: failed to read from socket: {}", e),
     }
     Ok(())
 }
 
-fn is_get_root(request: &str) -> bool {
-    request
+fn is_get_root<const N: usize>(request: [u8; N]) -> bool {
+    std::str::from_utf8(&request)
+        .ok()
+        .unwrap_or_default()
         .lines()
         .next()
         .map(|first_line| {
@@ -133,7 +137,7 @@ fn write_main_page<W: Write>(mut w: W, feeds: &Feeds) -> Result<(), Box<dyn Erro
     write!(w, r#"<meta name="color-scheme" content="light dark">"#)?;
     write!(
         w,
-        r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💭</text></svg>">"#
+        r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">"#
     )?;
     write!(w, "<style>{}</style>", include_str!("./main.css"))?;
     write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
