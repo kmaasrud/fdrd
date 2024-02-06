@@ -30,6 +30,24 @@ impl Model {
         self.feeds = mock_feeds()?;
         Ok(())
     }
+
+    fn view<W: Write>(&self, mut w: W) -> Result<(), Box<dyn Error>> {
+        write!(w, "<!DOCTYPE html>")?;
+        write!(w, r#"<meta charset="utf-8">"#)?;
+        write!(
+            w,
+            r#"<meta name="viewport" content="width=device-width, initial-scale=1">"#
+        )?;
+        write!(w, r#"<meta name="color-scheme" content="light dark">"#)?;
+        write!(
+            w,
+            r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">"#
+        )?;
+        write!(w, "<style>{}</style>", include_str!("./main.css"))?;
+        write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
+        self.feeds.write_html(&mut w)?;
+        Ok(())
+    }
 }
 
 fn main() {
@@ -60,7 +78,6 @@ fn run() -> Result<(), Box<dyn Error>> {
     });
 
     let listener = TcpListener::bind(ADDR)?;
-
     eprintln!("server listening on {ADDR}...");
 
     for stream in listener.incoming() {
@@ -103,7 +120,7 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
             if is_get_root(buffer) {
                 writeln!(stream, "HTTP/1.1 200 OK\r").unwrap();
                 writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r")?;
-                write_main_page(&mut stream, &model.feeds).unwrap();
+                model.view(&mut stream)?;
             } else {
                 write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found")?;
             }
@@ -125,22 +142,4 @@ fn is_get_root<const N: usize>(request: [u8; N]) -> bool {
             first_line.starts_with("GET / ") || first_line.starts_with("GET /index.html ")
         })
         .unwrap_or(false)
-}
-
-fn write_main_page<W: Write>(mut w: W, feeds: &Feeds) -> Result<(), Box<dyn Error>> {
-    write!(w, "<!DOCTYPE html>")?;
-    write!(w, r#"<meta charset="utf-8">"#)?;
-    write!(
-        w,
-        r#"<meta name="viewport" content="width=device-width, initial-scale=1">"#
-    )?;
-    write!(w, r#"<meta name="color-scheme" content="light dark">"#)?;
-    write!(
-        w,
-        r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">"#
-    )?;
-    write!(w, "<style>{}</style>", include_str!("./main.css"))?;
-    write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
-    feeds.write_html(&mut w)?;
-    Ok(())
 }
