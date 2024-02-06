@@ -9,25 +9,29 @@ use std::time::Duration;
 
 use feed::Feeds;
 
-use crate::feed::mock_feeds;
-
 const ADDR: &str = "0.0.0.0:8080";
 const UPDATE_MINUTES: u64 = 15;
 const BUF_SIZE: usize = 1024;
+const OPML_URLS: [&str; 1] = ["https://kmaasrud.com/blogroll.xml"];
 
 struct Model {
+    opml_urls: [&'static str; 1],
     feeds: Feeds,
 }
 
 impl Model {
     fn new() -> Self {
         Self {
-            feeds: mock_feeds().unwrap(),
+            opml_urls: OPML_URLS,
+            feeds: Feeds::new(),
         }
     }
 
     fn update(&mut self) -> Result<(), Box<dyn Error>> {
-        self.feeds = mock_feeds()?;
+        self.feeds = Feeds::new();
+        for url in self.opml_urls {
+            self.feeds.push_from_opml(url)?;
+        }
         Ok(())
     }
 
@@ -61,8 +65,11 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
-    let model = Arc::new(Mutex::new(Model::new()));
+    let mut model = Model::new();
+    model.update()?;
+    eprintln!("performed initial model update");
 
+    let model = Arc::new(Mutex::new(model));
     let model_clone = Arc::clone(&model);
     thread::spawn(move || loop {
         thread::sleep(Duration::from_secs(UPDATE_MINUTES * 60));
@@ -124,8 +131,6 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
             } else {
                 write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found")?;
             }
-
-            // stream.flush().unwrap();
         }
         Err(e) => eprintln!("error: failed to read from socket: {}", e),
     }

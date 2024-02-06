@@ -1,32 +1,12 @@
 use chrono::{DateTime, Duration, Utc};
 use feed_rs::parser;
+use opml::OPML;
 use std::error::Error;
 use std::io::{self, Write};
+use std::time::Duration as StdDuration;
 use ureq::get;
 
-const FEEDS: &str = r#"https://asahilinux.org/blog/index.xml
-https://blog.rust-lang.org/feed.xml
-https://drewdevault.com/blog/index.xml
-https://endtimes.dev/feed.xml
-https://github.com/hellux/jotdown/tags.atom
-https://hllmn.net/blog/index.xml
-https://kmaasrud.com/atom.xml
-https://nutcroft.com/rss/"#;
-
-pub fn mock_feeds() -> Result<Feeds, Box<dyn Error>> {
-    let mut feeds = Feeds::new();
-
-    for url in FEEDS.split('\n') {
-        let mut bytes: Vec<u8> = Vec::new();
-        get(url).call()?.into_reader().read_to_end(&mut bytes)?;
-
-        feeds.push(Feed::try_from(
-            parser::parse::<&[u8]>(bytes.as_ref()).map_err(|e| e.to_string())?,
-        )?);
-    }
-
-    Ok(feeds)
-}
+const TIMEOUT: StdDuration = StdDuration::new(10, 0);
 
 fn format_duration(dur: Duration) -> String {
     let mut val = dur.num_minutes();
@@ -136,12 +116,34 @@ pub struct Feeds {
 }
 
 impl Feeds {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { feeds: Vec::new() }
     }
 
     fn push(&mut self, feed: Feed) {
         self.feeds.push(feed)
+    }
+
+    pub fn push_from_opml(&mut self, opml_url: &str) -> Result<(), Box<dyn Error>> {
+        let mut r = get(opml_url).timeout(TIMEOUT).call()?.into_reader();
+        let opml = OPML::from_reader(&mut r)?;
+
+        for outline in opml.body.outlines {
+            if let Some(url) = outline.xml_url {
+                match get(&url).timeout(TIMEOUT).call() {
+                    Ok(response) => {
+                        let mut r = response.into_reader();
+                        match parser::parse(&mut r) {
+                            Ok(parsed) => self.push(Feed::try_from(parsed)?),
+                            Err(e) => eprintln!("error: failed to parse feed from {url}: {e}"),
+                        }
+                    }
+                    Err(e) => eprintln!("error: failed when fetching feed: {e}"),
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn entries_sorted(&self) -> Vec<Entry> {
