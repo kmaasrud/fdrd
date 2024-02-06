@@ -39,8 +39,12 @@
   in
     forAllSystems (system: let
       pkgs = import nixpkgs {
-        crossSystem = "armv6l-linux";
         inherit system;
+      };
+
+      crossPkgs = import nixpkgs {
+        inherit system;
+        crossSystem = "armv6l-linux";
       };
 
       toolchain = with fenix.packages.${system};
@@ -64,7 +68,12 @@
 
       devShells.default = pkgs.mkShell {
         nativeBuildInputs = with pkgs; [toolchain];
-        CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER = "${pkgs.stdenv.cc.targetPrefix}cc";
+        # CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER = "${pkgs.stdenv.cc.targetPrefix}cc";
+      };
+
+      devShells.pizero = crossPkgs.mkShell {
+        nativeBuildInputs = with crossPkgs; [toolchain];
+        CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER = "${crossPkgs.stdenv.cc.targetPrefix}cc";
       };
     });
 }
