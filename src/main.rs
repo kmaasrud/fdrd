@@ -37,19 +37,29 @@ impl Model {
 
     fn view<W: Write>(&self, mut w: W) -> Result<(), Box<dyn Error>> {
         write!(w, "<!DOCTYPE html>")?;
-        write!(w, r#"<meta charset="utf-8">"#)?;
-        write!(
-            w,
-            r#"<meta name="viewport" content="width=device-width, initial-scale=1">"#
-        )?;
-        write!(w, r#"<meta name="color-scheme" content="light dark">"#)?;
-        write!(
-            w,
-            r#"<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>">"#
-        )?;
+        write!(w, "{}", include_str!("./meta.html"))?;
         write!(w, "<style>{}</style>", include_str!("./main.css"))?;
+        write!(
+            w,
+            "<script type=\"module\">{}</script>",
+            include_str!("./dialog.js")
+        )?;
+
+        write!(w, "<header>")?;
         write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
+        write!(w, "<dialog id=\"info-dialog\">")?;
+        write!(w, "<button id=\"close-button\">×</button>")?;
+        write!(
+            w,
+            "<p>feeds fetched from <a href=\"{0}\">{0}</a></p>",
+            self.opml_urls[0]
+        )?;
+        write!(w, "</dialog>")?;
+        write!(w, "<button id=\"show-button\">i</button>")?;
+        write!(w, "</header>")?;
+
         self.feeds.write_html(&mut w)?;
+
         Ok(())
     }
 }

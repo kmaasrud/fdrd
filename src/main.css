@@ -11,9 +11,32 @@ body {
     padding: 0;
 }
 
-h1 sup {
+header h1 sup {
     font-size: .5em;
     font-weight: normal;
+}
+
+#show-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 1em;
+    width: 20px;
+    height: 20px;
+    border: solid 1px gray;
+    border-radius: 100%;
+}
+
+#info-dialog {
+    border: solid 1px gray;
+
+    #close-button {
+        border: solid 1px gray;
+        border-radius: 100%;
+        width: 20px;
+        height: 20px;
+        float: right;
+    }
 }
 
 ul {
