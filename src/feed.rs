@@ -16,7 +16,7 @@ https://nutcroft.com/rss/"#;
 pub fn mock_feeds() -> Result<Feeds, Box<dyn Error>> {
     let mut feeds = Feeds::new();
 
-    for url in FEEDS.split("\n") {
+    for url in FEEDS.split('\n') {
         let mut bytes: Vec<u8> = Vec::new();
         get(url).call()?.into_reader().read_to_end(&mut bytes)?;
 
@@ -51,7 +51,7 @@ fn format_duration(dur: Duration) -> String {
 
     let mut s = format!("{val} {descriptor}");
     if val > 1 {
-        s.push_str("s");
+        s.push('s');
     }
     s
 }
@@ -68,7 +68,7 @@ impl Entry {
         // FIXME: this is very naïve URL parsing
         self.link
             .as_ref()
-            .map(|link| link.split("/").skip(2).take(1).collect())
+            .map(|link| link.split('/').skip(2).take(1).collect())
     }
 
     pub fn duration_since(&self) -> String {
@@ -107,8 +107,8 @@ impl TryFrom<feed_rs::model::Entry> for Entry {
                 .title
                 .ok_or_else(|| format!("No title for feed entry {}", value.id))?
                 .content,
-            link: value.links.get(0).map(|l| l.href.to_owned()),
-            dt: value.published.or_else(|| value.updated),
+            link: value.links.first().map(|l| l.href.to_owned()),
+            dt: value.published.or(value.updated),
         })
     }
 }
@@ -148,8 +148,7 @@ impl Feeds {
         let mut entries: Vec<Entry> = self
             .feeds
             .iter()
-            .map(|feed| feed.entries.clone())
-            .flatten()
+            .flat_map(|feed| feed.entries.clone())
             .collect();
 
         entries.sort_unstable_by(|e1, e2| e2.dt.cmp(&e1.dt));
