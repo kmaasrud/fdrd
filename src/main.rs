@@ -1,13 +1,16 @@
 mod feed;
+mod time;
 
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use feed::Feeds;
+
+use crate::time::format_duration;
 
 const ADDR: &str = "0.0.0.0:8080";
 const UPDATE_MINUTES: u64 = 15;
@@ -15,6 +18,7 @@ const BUF_SIZE: usize = 1024;
 const OPML_URLS: [&str; 1] = ["https://kmaasrud.com/blogroll.xml"];
 
 struct Model {
+    last_update: DateTime<Utc>,
     opml_urls: [&'static str; 1],
     feeds: Feeds,
 }
@@ -22,6 +26,7 @@ struct Model {
 impl Model {
     fn new() -> Self {
         Self {
+            last_update: DateTime::<Utc>::UNIX_EPOCH,
             opml_urls: OPML_URLS,
             feeds: Feeds::new(),
         }
@@ -32,6 +37,7 @@ impl Model {
         for url in self.opml_urls {
             self.feeds.push_from_opml(url)?;
         }
+        self.last_update = Utc::now();
         Ok(())
     }
 
@@ -49,11 +55,18 @@ impl Model {
         write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
         write!(w, "<dialog id=\"info-dialog\">")?;
         write!(w, "<button id=\"close-button\">×</button>")?;
+        write!(w, "<p>")?;
         write!(
             w,
-            "<p>feeds fetched from <a href=\"{0}\">{0}</a></p>",
+            "updated {} ago<br>",
+            format_duration(Utc::now() - self.last_update)
+        )?;
+        write!(
+            w,
+            "feeds fetched from <a href=\"{0}\">{0}</a>",
             self.opml_urls[0]
         )?;
+        write!(w, "</p>")?;
         write!(w, "</dialog>")?;
         write!(w, "<button id=\"show-button\">i</button>")?;
         write!(w, "</header>")?;
@@ -82,7 +95,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let model = Arc::new(Mutex::new(model));
     let model_clone = Arc::clone(&model);
     thread::spawn(move || loop {
-        thread::sleep(Duration::from_secs(UPDATE_MINUTES * 60));
+        thread::sleep(std::time::Duration::from_secs(UPDATE_MINUTES * 60));
         match model_clone.try_lock() {
             Ok(mut feeds) => {
                 if let Err(e) = feeds.update() {

@@ -1,40 +1,14 @@
-use chrono::{DateTime, Duration, Utc};
+use crate::time::format_duration;
+
+use chrono::{DateTime, Utc};
 use feed_rs::parser;
 use opml::OPML;
 use std::error::Error;
 use std::io::{self, Write};
-use std::time::Duration as StdDuration;
+use std::time::Duration;
 use ureq::get;
 
-const TIMEOUT: StdDuration = StdDuration::new(10, 0);
-
-fn format_duration(dur: Duration) -> String {
-    let mut val = dur.num_minutes();
-    let mut descriptor = "minute";
-
-    if dur.num_weeks() > 52 {
-        descriptor = "year";
-        val = dur.num_days() / 365;
-    } else if dur.num_weeks() > 4 {
-        descriptor = "month";
-        val = dur.num_weeks() / 4;
-    } else if dur.num_days() > 7 {
-        descriptor = "week";
-        val = dur.num_weeks();
-    } else if dur.num_hours() > 24 {
-        descriptor = "day";
-        val = dur.num_days();
-    } else if dur.num_minutes() > 60 {
-        descriptor = "hour";
-        val = dur.num_hours();
-    }
-
-    let mut s = format!("{val} {descriptor}");
-    if val > 1 {
-        s.push('s');
-    }
-    s
-}
+const TIMEOUT: Duration = Duration::new(10, 0);
 
 #[derive(Clone)]
 pub struct Entry {
