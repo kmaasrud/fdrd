@@ -67,7 +67,7 @@
       };
 
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [toolchain];
+        nativeBuildInputs = with pkgs; [rust-analyzer toolchain];
         # CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER = "${pkgs.stdenv.cc.targetPrefix}cc";
       };
 
