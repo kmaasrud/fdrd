@@ -15,63 +15,74 @@ use crate::time::format_duration;
 const ADDR: &str = "0.0.0.0:8080";
 const UPDATE_MINUTES: u64 = 15;
 const BUF_SIZE: usize = 1024;
-const OPML_URLS: [&str; 1] = ["https://kmaasrud.com/blogroll.xml"];
 
 struct Model {
     last_update: DateTime<Utc>,
-    opml_urls: [&'static str; 1],
-    feeds: Feeds,
+    opml_urls: Vec<String>,
+    selected_opml_url: usize,
+    feeds: Vec<Feeds>,
 }
 
 impl Model {
     fn new() -> Self {
         Self {
             last_update: DateTime::<Utc>::UNIX_EPOCH,
-            opml_urls: OPML_URLS,
-            feeds: Feeds::new(),
+            opml_urls: std::env::var("FDRD_OPML_URLS")
+                .unwrap_or_default()
+                .split(',')
+                .map(ToString::to_string)
+                .collect(),
+            selected_opml_url: 0,
+            feeds: Vec::new(),
         }
     }
 
     fn update(&mut self) -> Result<(), Box<dyn Error>> {
-        self.feeds = Feeds::new();
-        for url in self.opml_urls {
-            self.feeds.push_from_opml(url)?;
+        self.feeds = Vec::new();
+        for url in &self.opml_urls {
+            let mut feed = Feeds::new();
+            feed.push_from_opml(url)?;
+            self.feeds.push(feed);
         }
         self.last_update = Utc::now();
         Ok(())
     }
 
     fn view<W: Write>(&self, mut w: W) -> Result<(), Box<dyn Error>> {
-        write!(w, "<!DOCTYPE html>")?;
-        write!(w, "{}", include_str!("./meta.html"))?;
-        write!(w, "<style>{}</style>", include_str!("./main.css"))?;
-        write!(
-            w,
-            "<script type=\"module\">{}</script>",
-            include_str!("./dialog.js")
-        )?;
+        if let (Some(feed), Some(opml_url)) = (
+            self.feeds.get(self.selected_opml_url),
+            self.opml_urls.get(self.selected_opml_url),
+        ) {
+            write!(w, "<!DOCTYPE html>")?;
+            write!(w, "{}", include_str!("./meta.html"))?;
+            write!(w, "<style>{}</style>", include_str!("./main.css"))?;
+            write!(
+                w,
+                "<script type=\"module\">{}</script>",
+                include_str!("./dialog.js")
+            )?;
 
-        write!(w, "<header>")?;
-        write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
-        write!(w, "<dialog id=\"info-dialog\">")?;
-        write!(w, "<button id=\"close-button\">×</button>")?;
-        write!(w, "<p>")?;
-        write!(
-            w,
-            "updated {} ago<br>",
-            format_duration(Utc::now() - self.last_update)
-        )?;
-        write!(
-            w,
-            "feeds fetched from <a href=\"{0}\">{0}</a>",
-            self.opml_urls[0]
-        )?;
-        write!(w, "</p>")?;
-        write!(w, "</dialog>")?;
-        write!(w, "<button id=\"show-button\">i</button>")?;
-        write!(w, "</header>")?;
+            write!(w, "<header>")?;
+            write!(w, "<h1>fdrd <sup>the tiny feed reader</sup></h1>")?;
+            write!(w, "<dialog id=\"info-dialog\">")?;
+            write!(w, "<button id=\"close-button\">×</button>")?;
+            write!(w, "<p>")?;
+            write!(
+                w,
+                "updated {} ago<br>",
+                format_duration(Utc::now() - self.last_update)
+            )?;
+            write!(
+                w,
+                "feeds fetched from <a href=\"{opml_url}\">{opml_url}</a>"
+            )?;
+            write!(w, "</p>")?;
+            write!(w, "</dialog>")?;
+            write!(w, "<button id=\"show-button\">i</button>")?;
+            write!(w, "</header>")?;
 
-        self.feeds.write_html(&mut w)?;
+            feed.write_html(&mut w)?;
+        }
 
         Ok(())
     }
@@ -137,7 +148,7 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
     let mut buffer = [0; BUF_SIZE];
     match stream.read(&mut buffer) {
         Ok(_) => {
-            let model = match model.try_lock() {
+            let mut model = match model.try_lock() {
                 Ok(model) => model,
                 Err(e) => {
                     writeln!(stream, "HTTP/1.1 500 Internal Server Error\r")?;
@@ -148,15 +159,31 @@ fn handle_client(mut stream: TcpStream, model: Arc<Mutex<Model>>) -> Result<(), 
             };
 
             if is_get_root(buffer) {
+                model.selected_opml_url = 0;
                 writeln!(stream, "HTTP/1.1 200 OK\r").unwrap();
                 writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r")?;
                 model.view(&mut stream)?;
+            } else if let Some(path) = get_path(buffer) {
+                match model
+                    .opml_urls
+                    .iter()
+                    .position(|url| url.trim_start_matches("https://").starts_with(&path))
+                {
+                    Some(i) => {
+                        model.selected_opml_url = i;
+                        writeln!(stream, "HTTP/1.1 200 OK\r").unwrap();
+                        writeln!(stream, "Content-Type: text/html; charset=UTF-8\r\n\r")?;
+                        model.view(&mut stream)?;
+                    }
+                    None => write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found")?,
+                }
             } else {
                 write!(stream, "HTTP/1.1 404 NOT FOUND\r\n\r\n404 Page not found")?;
             }
         }
         Err(e) => eprintln!("error: failed to read from socket: {}", e),
     }
+
     Ok(())
 }
 
@@ -170,4 +197,19 @@ fn is_get_root<const N: usize>(request: [u8; N]) -> bool {
             first_line.starts_with("GET / ") || first_line.starts_with("GET /index.html ")
         })
         .unwrap_or(false)
+}
+
+fn get_path<const N: usize>(request: [u8; N]) -> Option<String> {
+    std::str::from_utf8(&request)
+        .ok()
+        .unwrap_or_default()
+        .lines()
+        .next()
+        .map(|first_line| {
+            first_line
+                .trim_start_matches("GET /")
+                .split_ascii_whitespace()
+                .take(1)
+                .collect()
+        })
 }
