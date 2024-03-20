@@ -41,7 +41,9 @@ impl Model {
         self.feeds = Vec::new();
         for url in &self.opml_urls {
             let mut feed = Feeds::new();
-            feed.push_from_opml(url)?;
+            if let Err(e) = feed.push_from_opml(url) {
+                eprintln!("error: {e}");
+            };
             self.feeds.push(feed);
         }
         self.last_update = Utc::now();
