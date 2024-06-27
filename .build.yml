@@ -1,0 +1,20 @@
+image: nixos/unstable
+oauth: pages.sr.ht/PAGES:RW
+sources:
+  - git@git.sr.ht:~kmaasrud/fdrd
+environment:
+  repo: fdrd
+  site: fdrd.mouse.community
+  NIX_CONFIG: "experimental-features = nix-command flakes"
+tasks:
+  - check-branch: |
+      cd $repo
+      if [ "$(git rev-parse main)" != "$(git rev-parse HEAD)" ]; then \
+        complete-build; \
+      fi
+  - build: |
+      cd $repo
+      nix develop -c make
+      tar -C public -cvz . > ../site.tar.gz
+  - upload: |
+      nix run nixpkgs#hut -- pages publish -d $site site.tar.gz
