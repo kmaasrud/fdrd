@@ -1,12 +1,17 @@
-const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+const DEFAULT_CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
-const rssFeedList = document.getElementById("fd");
-const infoDialog = document.getElementById("info-dialog");
-const opmlForm = document.getElementById("opml-form");
-const opmlInput = document.getElementById("opml-url");
 const dialog = document.getElementById("info-dialog");
 const showButton = document.getElementById("show-button");
 const closeButton = document.getElementById("close-button");
+
+const form = document.getElementById("form");
+const opmlInput = document.getElementById("opml-url");
+
+const corsInput = document.getElementById("cors-url");
+let corsProxy = localStorage.getItem("corsProxy") || DEFAULT_CORS_PROXY;
+corsInput.value = corsProxy;
+
+const rssFeedList = document.getElementById("fd");
 let allPosts = [];
 
 function timeSince(date) {
@@ -32,7 +37,7 @@ async function fetchWithCORSRetry(url) {
   try {
     return await fetch(url);
   } catch (_error) {
-    return await fetch(CORS_PROXY + url);
+    return await fetch(corsProxy + url);
   }
 }
 
@@ -126,12 +131,14 @@ showButton.addEventListener("click", () => {
 
 closeButton.addEventListener("click", () => dialog.close());
 
-opmlForm.addEventListener("submit", (e) => {
+form.addEventListener("submit", (e) => {
   e.preventDefault();
   const url = opmlInput.value.trim();
+  corsProxy = corsInput.value.trim();
   if (url) {
+    localStorage.setItem("corsProxy", corsProxy);
     localStorage.setItem("opmlUrl", url);
-    infoDialog.close();
+    dialog.close();
     allPosts = [];
     rssFeedList.innerHTML = "";
     runFetch();

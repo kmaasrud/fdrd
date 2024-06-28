@@ -18,11 +18,14 @@
             <button id="close-button">×</button>
             <p>
                 Here you can put a URL pointing to an OPML file, and then all posts from the feeds mentioned in that
-                OPML file will get fetched. Note that while all domains that support CORS will be fetched normally, the
-                ones that don't will get fetched via a CORS proxy. The proxy that currently is in use is
-                https://api.allorigins.win/raw?url=
+                OPML file will get fetched. <br>
+                Note that while all domains with support for CORS will be fetched directly, the ones without support
+                will get fetched via a CORS proxy. Beware of the risk associated with piping your traffic through
+                another web server. If you want to avoid this, remove the proxy URL from the form below.
             </p>
-            <form id="opml-form">
+            <form id="form">
+                <label for="cors-url">CORS Proxy:</label>
+                <input type="url" id="cors-url" name="cors-url">
                 <label for="opml-url">OPML URL:</label>
                 <input type="url" id="opml-url" name="opml-url" required>
                 <button type="submit">Save</button>

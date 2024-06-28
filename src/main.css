@@ -44,7 +44,7 @@ dialog {
 
     form {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: auto 1fr;
         gap: .5em;
     }
 }
