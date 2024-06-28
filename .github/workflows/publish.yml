@@ -2,7 +2,7 @@ name: Publish
 
 on:
   push:
-    branche:
+    branches:
       - "main"
 
 jobs:
@@ -22,8 +22,23 @@ jobs:
         run: nix develop -c make
 
       - name: Publish
-        uses: peaceiris/actions-gh-pages@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./public
-          cname: fdrd.mouse.community
+          path: public
+
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

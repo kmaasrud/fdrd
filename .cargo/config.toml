@@ -1,2 +1,0 @@
-[target.arm-unknown-linux-musleabihf]
-rustflags = ["-C", "target-feature=+crt-static"]
