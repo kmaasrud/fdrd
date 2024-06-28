@@ -18,10 +18,13 @@
             <button id="close-button">×</button>
             <p>
                 Here you can put a URL pointing to an OPML file, and then all posts from the feeds mentioned in that
-                OPML file will get fetched. <br>
-                Note that while all domains with support for CORS will be fetched directly, the ones without support
+                OPML file will get fetched.
+            </p>
+            <p>
+                Note that while all domains with support for CORS will be fetched directly, the ones lacking support
                 will get fetched via a CORS proxy. Beware of the risk associated with piping your traffic through
-                another web server. If you want to avoid this, remove the proxy URL from the form below.
+                another server. If you want to avoid this, remove the proxy URL from the form below, but beware that
+                this will error on a lot of feeds.
             </p>
             <form id="form">
                 <label for="cors-url">CORS Proxy:</label>
@@ -30,6 +33,7 @@
                 <input type="url" id="opml-url" name="opml-url" required>
                 <button type="submit">Save</button>
             </form>
+            <p>The source code for this page is available <a href="https://github.com/kmaasrud/fdrd">here</a>.</p>
         </dialog>
         <button id="show-button">i</button>
     </header>
