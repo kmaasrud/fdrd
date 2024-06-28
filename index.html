@@ -1,0 +1,7 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=color-scheme content="light dark"><link rel=icon href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📰</text></svg>"><title>fdrd</title>
+<link rel=stylesheet href=main.css><script async src=main.js></script><header><h1>fdrd <sup>the tiny feed reader</sup><span class=spinner id=spinner></span></h1><dialog id=info-dialog><button id=close-button>×</button><p>Here you can put a URL pointing to an OPML file, and then all posts from the feeds mentioned in that
+OPML file will get fetched. Note that while all domains that support CORS will be fetched normally, the
+ones that don't will get fetched via a CORS proxy. The proxy that currently is in use is
+https://api.allorigins.win/raw?url=<form id=opml-form><label for=opml-url>OPML URL:</label>
+<input type=url id=opml-url name=opml-url required>
+<button>Save</button></form></dialog><button id=show-button>i</button></header><ul id=fd></ul>
