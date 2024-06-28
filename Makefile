@@ -5,6 +5,10 @@ PUBLIC := $(PUBLIC_DIR)/index.html $(PUBLIC_DIR)/main.css $(PUBLIC_DIR)/main.js
 .PHONY: all
 all: $(PUBLIC)
 
+.PHONY: serve
+serve: $(PUBLIC)
+	python3 -m http.server -d $(PUBLIC_DIR)
+
 $(PUBLIC_DIR)/%.html: $(SRC_DIR)/%.html
 	minify $< -o $@
 
