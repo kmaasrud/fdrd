@@ -26,7 +26,12 @@
       pkgs = import nixpkgs {inherit system;};
     in {
       devShells.default = pkgs.mkShell {
-        nativeBuildInputs = with pkgs; [python3];
+        nativeBuildInputs = with pkgs; [
+          lightningcss
+          minify
+          nodePackages.uglify-js
+          python3
+        ];
       };
     });
 }
