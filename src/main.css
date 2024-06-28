@@ -63,21 +63,20 @@ li {
     }
 }
 
+
 a {
     color: blue;
-}
 
-@media (prefers-color-scheme: dark) {
-    a {
-        color: cornflowerblue
+    &:visited {
+        color: gray;
     }
 }
 
 .spinner {
     margin-inline-start: 10px;
     vertical-align: super;
-    border: 2px hidden #f3f3f3;
-    border-top: 2px solid #3498db;
+    border: 2px hidden;
+    border-top: solid blue;
     border-radius: 50%;
     width: 10px;
     height: 10px;
@@ -92,5 +91,19 @@ a {
 
     100% {
         transform: rotate(360deg);
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    a {
+        color: cornflowerblue;
+
+        &:visited {
+            color: slategray;
+        }
+    }
+
+    .spinner {
+        border-top: solid cornflowerblue;
     }
 }
